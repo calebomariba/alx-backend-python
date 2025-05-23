@@ -1,38 +1,52 @@
 #!/usr/bin/env python3
-
 import mysql.connector
 import os
 
-def stream_users_in_batches(batch_size):
-    """Generator that yields users in batches of batch_size."""
-    connection = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password=os.getenv("MYSQL_ROOT_PASSWORD"),
-        database="ALX_prodev"
-    )
-    cursor = connection.cursor()
-    try:
-        cursor.execute("SELECT user_id, name, email, age FROM user_data;")
-        rows = cursor.fetchall()  # fetch all results at once
 
-        # Yield in batches
-        for i in range(0, len(rows), batch_size):
-            batch = [{
+def stream_users_in_batches(batch_size):
+    """Yields batches of users from the user_data table."""
+    try:
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password=os.getenv("MYSQL_ROOT_PASSWORD"),
+            database="ALX_prodev"
+        )
+        cursor = connection.cursor()
+        cursor.execute("SELECT user_id, name, email, age FROM user_data;")
+        
+        batch = []
+        for row in cursor:
+            user = {
                 'user_id': row[0],
                 'name': row[1],
                 'email': row[2],
                 'age': row[3]
-            } for row in rows[i:i+batch_size]]
+            }
+            batch.append(user)
+            if len(batch) == batch_size:
+                yield batch
+                batch = []
+        
+        if batch:
             yield batch
 
+    except mysql.connector.Error as e:
+        print(f"Error: {e}")
     finally:
-        cursor.close()
-        connection.close()
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            if connection.is_connected():
+                connection.close()
+        except Exception:
+            pass
 
 
 def batch_processing(batch_size):
-    """Processes batches and yields users over age 25."""
+    """Processes users in batches, printing only those over age 25."""
     for batch in stream_users_in_batches(batch_size):
         for user in batch:
             if user['age'] > 25:
