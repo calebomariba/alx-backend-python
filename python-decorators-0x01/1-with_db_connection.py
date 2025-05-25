@@ -23,10 +23,10 @@ def with_db_connection(func):
 @with_db_connection
 def get_user_by_id(conn, user_id):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
     return cursor.fetchone()
 
 # Example usage
 if __name__ == "__main__":
-    user = get_user_by_id(user_id=1)
+    user = get_user_by_id(user_id="00305b1c-5dd0-4af1-a615-b1526963c3e4")
     print(user)
