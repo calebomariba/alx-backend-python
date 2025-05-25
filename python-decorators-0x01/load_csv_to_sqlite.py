@@ -2,7 +2,6 @@
 import sqlite3
 import requests
 import csv
-import uuid
 import io
 
 def create_users_table(conn):
@@ -10,9 +9,9 @@ def create_users_table(conn):
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            user_id TEXT PRIMARY KEY,
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,  -- AUTO-INCREMENT
             name TEXT NOT NULL,
-            email TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,                -- Optional: to prevent duplicates
             age INTEGER NOT NULL
         );
     """)
@@ -22,40 +21,33 @@ def create_users_table(conn):
 def load_csv_to_sqlite(csv_url, db_name="users.db"):
     """Download CSV from URL and load into SQLite database."""
     try:
-        # Download CSV
         response = requests.get(csv_url)
-        response.raise_for_status()  # Raise error for bad status
+        response.raise_for_status()
         csv_content = response.text
 
-        # Connect to SQLite
         conn = sqlite3.connect(db_name)
         cursor = conn.cursor()
 
-        # Create table
         create_users_table(conn)
 
-        # Parse CSV
         csv_file = io.StringIO(csv_content)
         csv_reader = csv.DictReader(csv_file)
-        
-        # Verify expected headers
+
         expected_headers = {'name', 'email', 'age'}
         if not expected_headers.issubset(csv_reader.fieldnames):
             print(f"Error: CSV missing required headers. Found: {csv_reader.fieldnames}")
             return
 
-        # Insert rows
         for row in csv_reader:
-            user_id = str(uuid.uuid4())  # Generate UUID
             if not all([row.get('name'), row.get('email'), row.get('age')]):
                 print(f"Skipping row with missing data: {row}")
                 continue
             try:
                 age = int(row['age'])
                 cursor.execute("""
-                    INSERT INTO users (user_id, name, email, age)
-                    VALUES (?, ?, ?, ?);
-                """, (user_id, row['name'], row['email'], age))
+                    INSERT INTO users (name, email, age)
+                    VALUES (?, ?, ?);
+                """, (row['name'], row['email'], age))
             except ValueError:
                 print(f"Invalid age value: {row['age']}, skipping row")
                 continue

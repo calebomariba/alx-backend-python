@@ -28,5 +28,5 @@ def get_user_by_id(conn, user_id):
 
 # Example usage
 if __name__ == "__main__":
-    user = get_user_by_id(user_id="00305b1c-5dd0-4af1-a615-b1526963c3e4")
+    user = get_user_by_id(user_id= 1)
     print(user)
