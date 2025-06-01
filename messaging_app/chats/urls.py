@@ -5,4 +5,6 @@ router = DefaultRouter()
 router.register(r'conversations', ConversationViewSet)
 router.register(r'messages', MessageViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+]
