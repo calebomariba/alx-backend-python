@@ -35,7 +35,8 @@ class TestGithubOrgClient(unittest.TestCase):
         """Test GithubOrgClient._public_repos_url returns expected URL.
         """
         test_payload = {
-            "repos_url": "https: //api.github.com/orgs/test_org/repos"}
+            "repos_url": "https: //api.github.com/orgs/test_org/repos"
+        }
         with patch('client.GithubOrgClient.org',
                    new_callable=PropertyMock) as mock_org:
             mock_org.return_value = test_payload
@@ -47,8 +48,11 @@ class TestGithubOrgClient(unittest.TestCase):
     def test_public_repos(self, mock_get_json):
         """Test GithubOrgClient.public_repos returns expected repo names.
         """
-        test_payload = [{"name": "repo1"}, {"name": "repo2"}]
-        test_url = "https://api.github.com/orgs/test_org/repos"
+        test_payload = [
+            {"name": "repo1"},
+            {"name": "repo2"}
+        ]
+        test_url = "https: //api.github.com/orgs/test_org/repos"
         mock_get_json.return_value = test_payload
         with patch('client.GithubOrgClient._public_repos_url',
                    new_callable=PropertyMock) as mock_repos_url:
@@ -64,7 +68,7 @@ class TestGithubOrgClient(unittest.TestCase):
         ({"license": {"key": "other_license"}}, "my_license", False),
     ])
     def test_has_license(self, repo, license_key, expected):
-        """Test GithubOrgClient.has_license returns correct boolean value.
+        """Test GithubOrgClient.has_license returns correct boolean.
         """
         result = GithubOrgClient.has_license(repo, license_key)
         self.assertEqual(result, expected)
@@ -100,12 +104,12 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Tear down class by stopping the requests.get patcher.
+        """Tear down class by stopping the patcher.
         """
         cls.get_patcher.stop()
 
     def test_public_repos(self):
-        """Test public_repos returns expected repos from fixtures.
+        """Test public_repos returns expected repos.
         """
         client = GithubOrgClient("google")
         result = client.public_repos()
