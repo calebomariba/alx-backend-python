@@ -2,9 +2,10 @@
 """Unit tests for client module.
 """
 import unittest
-from parameterized import parameterized
-from unittest.mock import patch, PropertyMock
+from parameterized import parameterized, parameterized_class
+from unittest.mock import patch, Mock, PropertyMock
 from client import GithubOrgClient
+from fixtures import fixtures
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -34,8 +35,7 @@ class TestGithubOrgClient(unittest.TestCase):
         """Test GithubOrgClient._public_repos_url returns expected URL.
         """
         test_payload = {
-            "repos_url": "https://api.github.com/orgs/test_org/repos"
-        }
+            "repos_url": "https: //api.github.com/orgs/test_org/repos"}
         with patch('client.GithubOrgClient.org',
                    new_callable=PropertyMock) as mock_org:
             mock_org.return_value = test_payload
@@ -47,10 +47,7 @@ class TestGithubOrgClient(unittest.TestCase):
     def test_public_repos(self, mock_get_json):
         """Test GithubOrgClient.public_repos returns expected repo names.
         """
-        test_payload = [
-            {"name": "repo1"},
-            {"name": "repo2"}
-        ]
+        test_payload = [{"name": "repo1"}, {"name": "repo2"}]
         test_url = "https://api.github.com/orgs/test_org/repos"
         mock_get_json.return_value = test_payload
         with patch('client.GithubOrgClient._public_repos_url',
@@ -67,10 +64,52 @@ class TestGithubOrgClient(unittest.TestCase):
         ({"license": {"key": "other_license"}}, "my_license", False),
     ])
     def test_has_license(self, repo, license_key, expected):
-        """Test GithubOrgClient.has_license returns correct boolean.
+        """Test GithubOrgClient.has_license returns correct boolean value.
         """
         result = GithubOrgClient.has_license(repo, license_key)
         self.assertEqual(result, expected)
+
+
+@parameterized_class([
+    {
+        "org_payload": fixture["org_payload"],
+        "repos_payload": fixture["repos_payload"],
+        "expected_repos": fixture["expected_repos"],
+        "apache2_repos": fixture["apache2_repos"]
+    } for fixture in fixtures
+])
+class TestIntegrationGithubOrgClient(unittest.TestCase):
+    """Integration tests for GithubOrgClient.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up class by mocking requests.get with fixture payloads.
+        """
+        def get_json_side_effect(url):
+            mock_response = Mock()
+            if url.endswith("/orgs/google"):
+                mock_response.json.return_value = cls.org_payload
+            else:
+                mock_response.json.return_value = cls.repos_payload
+            return mock_response
+
+        cls.get_patcher = patch('requests.get')
+        cls.mock_get = cls.get_patcher.start()
+        cls.mock_get.side_effect = get_json_side_effect
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down class by stopping the requests.get patcher.
+        """
+        cls.get_patcher.stop()
+
+    def test_public_repos(self):
+        """Test public_repos returns expected repos from fixtures.
+        """
+        client = GithubOrgClient("google")
+        result = client.public_repos()
+        self.assertEqual(result, self.expected_repos)
 
 
 if __name__ == '__main__':
