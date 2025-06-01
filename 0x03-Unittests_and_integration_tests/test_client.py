@@ -2,10 +2,12 @@
 """Unit tests for client module.
 """
 import unittest
+
 from parameterized import parameterized, parameterized_class
 from unittest.mock import patch, Mock, PropertyMock
+
 from client import GithubOrgClient
-from fixtures import fixtures
+from fixtures import TEST_PAYLOAD
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -52,7 +54,7 @@ class TestGithubOrgClient(unittest.TestCase):
             {"name": "repo1"},
             {"name": "repo2"}
         ]
-        test_url = "https: //api.github.com/orgs/test_org/repos"
+        test_url = "https://api.github.com/orgs/test_org/repos"
         mock_get_json.return_value = test_payload
         with patch('client.GithubOrgClient._public_repos_url',
                    new_callable=PropertyMock) as mock_repos_url:
@@ -76,11 +78,12 @@ class TestGithubOrgClient(unittest.TestCase):
 
 @parameterized_class([
     {
-        "org_payload": fixture["org_payload"],
-        "repos_payload": fixture["repos_payload"],
-        "expected_repos": fixture["expected_repos"],
-        "apache2_repos": fixture["apache2_repos"]
-    } for fixture in fixtures
+        "org_payload": org_payload,
+        "repos_payload": repos_payload,
+        "expected_repos": expected_repos,
+        "apache2_repos": apache2_repos
+    } for org_payload, repos_payload, expected_repos, apache2_repos
+    in TEST_PAYLOAD
 ])
 class TestIntegrationGithubOrgClient(unittest.TestCase):
     """Integration tests for GithubOrgClient.
@@ -90,17 +93,17 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
     def setUpClass(cls):
         """Set up class by mocking requests.get with fixture payloads.
         """
-        def get_json_side_effect(url):
+        def get_side_effect(url):
             mock_response = Mock()
-            if url.endswith("/orgs/google"):
+            if url == "https: //api.github.com/orgs/google":
                 mock_response.json.return_value = cls.org_payload
-            else:
+            elif url == cls.org_payload["repos_url"]:
                 mock_response.json.return_value = cls.repos_payload
             return mock_response
 
         cls.get_patcher = patch('requests.get')
         cls.mock_get = cls.get_patcher.start()
-        cls.mock_get.side_effect = get_json_side_effect
+        cls.mock_get.side_effect = get_side_effect
 
     @classmethod
     def tearDownClass(cls):
