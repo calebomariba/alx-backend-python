@@ -4,6 +4,10 @@ from rest_framework import status
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer
 from uuid import UUID
+from django.contrib.auth.models import User
+from rest_framework.permissions import IsAuthenticated
+from .permissions import IsParticipantOfConversation
+
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -100,3 +104,40 @@ class MessageViewSet(viewsets.ModelViewSet):
         except Conversation.DoesNotExist:
             return Response({"error": "Conversation not found"},
                             status=status.HTTP_404_NOT_FOUND)
+
+
+
+class ConversationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for listing, creating, retrieving, updating, and deleting conversations.
+    Only authenticated users who are participants can access conversations.
+    """
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+
+    def get_queryset(self):
+        # Filter conversations to those where the user is a participant
+        return Conversation.objects.filter(participants=self.request.user)
+
+    def perform_create(self, serializer):
+        # Add the requesting user as a participant during creation
+        conversation = serializer.save()
+        conversation.participants.add(self.request.user)
+
+class MessageViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for listing, creating, retrieving, updating, and deleting messages.
+    Only authenticated users who are participants in the conversation can access messages.
+    """
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+
+    def get_queryset(self):
+        # Filter messages to those in conversations the user is part of
+        return Message.objects.filter(conversation__participants=self.request.user)
+
+    def perform_create(self, serializer):
+        # Set the requesting user as the message sender
+        serializer.save(user=self.request.user)

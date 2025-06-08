@@ -13,3 +13,23 @@ class IsOwnerOrParticipant(permissions.BasePermission):
         elif hasattr(obj, 'participants'):  # Assuming Conversation has 'participants' ManyToManyField
             return request.user in obj.participants.all()
         return False
+
+
+
+class IsParticipantOfConversation(permissions.BasePermission):
+    """
+    Custom permission to allow only authenticated users who are participants
+    in a conversation to view, send, update, or delete messages or access conversations.
+    """
+    def has_permission(self, request, view):
+        # Ensure user is authenticated for all actions
+        return request.user and request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        # For Message: Check if user is a participant in the message's conversation
+        if hasattr(obj, 'conversation'):
+            return request.user in obj.conversation.participants.all()
+        # For Conversation: Check if user is a participant
+        elif hasattr(obj, 'participants'):
+            return request.user in obj.participants.all()
+        return False
