@@ -44,3 +44,32 @@ class RestrictAccessByTimeMiddleware:
         # Proceed to next middleware or view
         response = self.get_response(request)
         return response
+
+
+class OffensiveLanguageMiddleware:
+    def __init__(self, get_response):
+        """Initialize middleware with get_response callable."""
+        self.get_response = get_response
+        # Simple list of offensive words (extend as needed)
+        self.offensive_words = {'badword1', 'badword2', 'offensive'}
+
+    def __call__(self, request):
+        """Check POST requests for offensive language in message body."""
+        if request.method == 'POST' and request.path == '/api/chats/messages/':
+            try:
+                # Parse JSON body
+                import json
+                body = json.loads(request.body.decode('utf-8'))
+                message_body = body.get('message_body', '').lower()
+                # Check for offensive words
+                if any(word in message_body for word in self.offensive_words):
+                    return HttpResponse(
+                        "Message contains offensive language.",
+                        status=403  # Forbidden
+                    )
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                pass  # Skip if body is invalid
+
+        # Proceed to next middleware or view
+        response = self.get_response(request)
+        return response
