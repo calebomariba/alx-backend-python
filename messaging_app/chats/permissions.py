@@ -26,10 +26,13 @@ class IsParticipantOfConversation(permissions.BasePermission):
         return request.user and request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
-        # For Message: Check if user is a participant in the message's conversation
+        # For Message: Allow participants to view, send, update, or delete
         if hasattr(obj, 'conversation'):
-            return request.user in obj.conversation.participants.all()
-        # For Conversation: Check if user is a participant
+            if request.method in ['GET', 'POST']:  # Allow viewing/sending for participants
+                return request.user in obj.conversation.participants.all()
+            elif request.method in ['PUT', 'PATCH', 'DELETE']:  # Restrict updates/deletes to participants
+                return request.user in obj.conversation.participants.all()
+        # For Conversation: Allow participants to access
         elif hasattr(obj, 'participants'):
             return request.user in obj.participants.all()
         return False
