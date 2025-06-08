@@ -1,0 +1,205 @@
+{
+    "info": {
+        "name": "MessagingAppTests",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Obtain JWT Token",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {"key": "Content-Type", "value": "application/json"}
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"username\": \"user1\", \"password\": \"password123\"}"
+                },
+                "url": "{{base_url}}/api/token/"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "const response = pm.response.json();",
+                            "pm.environment.set(\"access_token\", response.access);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Create Conversation",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {"key": "Content-Type", "value": "application/json"},
+                    {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"participant_ids\": [\"<user2_uuid>\"]}"
+                },
+                "url": "{{base_url}}/api/chats/conversations/"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 201\", function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "const response = pm.response.json();",
+                            "pm.environment.set(\"conversation_id\", response.conversation_id);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Send Message",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {"key": "Content-Type", "value": "application/json"},
+                    {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\"conversation\": \"{{conversation_id}}\", \"message_body\": \"Hello, user2!\"}"
+                },
+                "url": "{{base_url}}/api/chats/messages/"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 201\", function () {",
+                            "    pm.response.to.have.status(201);",
+                            "});",
+                            "pm.test(\"Message body matches\", function () {",
+                            "    pm.expect(pm.response.json().message_body).to.equal(\"Hello, user2!\");",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Fetch Conversations",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                ],
+                "url": "{{base_url}}/api/chats/conversations/"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Response contains conversations\", function () {",
+                            "    pm.expect(pm.response.json().results.length).to.be.greaterThan(0);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Fetch Messages",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {"key": "Authorization", "value": "Bearer {{access_token}}"}
+                ],
+                "url": "{{base_url}}/api/chats/messages/?conversation_id={{conversation_id}}"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 200\", function () {",
+                            "    pm.response.to.have.status(200);",
+                            "});",
+                            "pm.test(\"Response contains messages\", function () {",
+                            "    pm.expect(pm.response.json().results.length).to.be.greaterThan(0);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Unauthorized Conversation Access",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {"key": "Authorization", "value": "Bearer {{user3_access_token}}"}
+                ],
+                "url": "{{base_url}}/api/chats/conversations/{{conversation_id}}/"
+            },
+            "response": [],
+            "event": [
+                {
+                    "listen": "prerequest",
+                    "script": {
+                        "exec": [
+                            "pm.sendRequest({",
+                            "    url: '{{base_url}}/api/token/',",
+                            "    method: 'POST',",
+                            "    header: {",
+                            "        'Content-Type': 'application/json'",
+                            "    },",
+                            "    body: {",
+                            "        mode: 'raw',",
+                            "        raw: JSON.stringify({",
+                            "            username: 'user3',",
+                            "            password: 'password123'",
+                            "        })",
+                            "    }",
+                            "}, function (err, res) {",
+                            "    if (!err) {",
+                            "        pm.environment.set('user3_access_token', res.json().access);",
+                            "    }",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                },
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "pm.test(\"Status code is 403 or 404\", function () {",
+                            "    pm.response.to.have.status([403, 404]);",
+                            "});"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ]
+        }
+    ]
+}
