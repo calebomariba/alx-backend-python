@@ -22,5 +22,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('chats.urls')),
     path('api-auth/', include('rest_framework.urls')),
+    path('api/chats/', include('chats.urls')),  # Route to chats app URLs
     # path('api-token-auth/', include('rest_framework.authtoken.urls')),
 ]

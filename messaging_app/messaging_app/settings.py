@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "chats",
     'rest_framework.authtoken',
+    'rest_framework',  # Add Django REST Framework
+    'rest_framework_simplejwt',  # Add Simple JWT
+    
 ]
 
 MIDDLEWARE = [
@@ -142,4 +145,16 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access token valid for 60 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh token valid for 1 day
+    'ROTATE_REFRESH_TOKENS': True,  # Issue new refresh token on refresh
+    'BLACKLIST_AFTER_ROTATION': True,  # Blacklist old refresh tokens
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,  # Use Django's SECRET_KEY
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
