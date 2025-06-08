@@ -55,6 +55,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     'chats.middleware.RequestLoggingMiddleware',  # Add custom middleware
+    'chats.middleware.OffensiveLanguageMiddleware',  # Add rate-limiting middleware
+    'chats.middleware.RestrictAccessByTimeMiddleware',  # Add time restriction middleware
+    
 ]
 
 AUTH_USER_MODEL = 'chats.User'
