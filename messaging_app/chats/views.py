@@ -1,19 +1,25 @@
 from rest_framework import viewsets, filters
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Conversation, Message, User
+from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from uuid import UUID
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsParticipantOfConversation
-
+from .pagination import MessagePagination
+from .filters import MessageFilter
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
-    """ViewSet for listing and creating conversations."""
+    """
+    ViewSet for listing, creating, retrieving, updating, and deleting conversations.
+    Only authenticated users who are participants can access conversations.
+    """
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['participants__first_name', 'participants__last_name']
     ordering_fields = ['created_at']
@@ -37,8 +43,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
         try:
             participants = [request.user]
             for pid in participant_ids:
-                UUID(pid, version=4)
-                user = User.objects.get(user_id=pid)
+                UUID(pid, version=4)  # Validate UUID
+                user = User.objects.get(user_id=pid)  # Use user_id
                 participants.append(user)
             conversation = Conversation.objects.create()
             conversation.participants.add(*participants)
@@ -53,16 +59,22 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 class MessageViewSet(viewsets.ModelViewSet):
-    """ViewSet for listing and creating messages."""
+    """
+    ViewSet for listing, creating, retrieving, updating, and deleting messages.
+    Only authenticated users who are participants in the conversation can access messages.
+    """
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    pagination_class = MessagePagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = MessageFilter
     search_fields = ['message_body']
     ordering_fields = ['sent_at']
     ordering = ['-sent_at']
 
     def get_queryset(self):
-        """Filter messages by conversation."""
+        """Filter messages by conversation and participant."""
         if not self.request.user.is_authenticated:
             return Message.objects.none()
         conversation_id = self.request.query_params.get('conversation_id')
@@ -104,40 +116,3 @@ class MessageViewSet(viewsets.ModelViewSet):
         except Conversation.DoesNotExist:
             return Response({"error": "Conversation not found"},
                             status=status.HTTP_404_NOT_FOUND)
-
-
-
-class ConversationViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for listing, creating, retrieving, updating, and deleting conversations.
-    Only authenticated users who are participants can access conversations.
-    """
-    queryset = Conversation.objects.all()
-    serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
-
-    def get_queryset(self):
-        # Filter conversations to those where the user is a participant
-        return Conversation.objects.filter(participants=self.request.user)
-
-    def perform_create(self, serializer):
-        # Add the requesting user as a participant during creation
-        conversation = serializer.save()
-        conversation.participants.add(self.request.user)
-
-class MessageViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for listing, creating, retrieving, updating, and deleting messages.
-    Only authenticated users who are participants in the conversation can access messages.
-    """
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
-
-    def get_queryset(self):
-        # Filter messages to those in conversations the user is part of
-        return Message.objects.filter(conversation__participants=self.request.user)
-
-    def perform_create(self, serializer):
-        # Set the requesting user as the message sender
-        serializer.save(user=self.request.user)

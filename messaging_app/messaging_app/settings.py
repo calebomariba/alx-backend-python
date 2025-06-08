@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     "chats",
     'rest_framework.authtoken',
     'rest_framework',  # Add Django REST Framework
-    'rest_framework_simplejwt',  # Add Simple JWT
+    'rest_framework_simplejwt', 
+    'django_filters', # Add Simple JWT
     
 ]
 
@@ -147,6 +148,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,  # Set global page size to 20
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
 }
 
 SIMPLE_JWT = {
