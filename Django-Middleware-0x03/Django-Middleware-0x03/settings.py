@@ -57,6 +57,7 @@ MIDDLEWARE = [
     'chats.middleware.OffensiveLanguageMiddleware',  # Add rate-limiting middleware
     'chats.middleware.RestrictAccessByTimeMiddleware',  # Add time restriction middleware
     'chats.middleware.RequestLoggingMiddleware',  # Add custom middleware
+    'chats.middleware.RolePermissionMiddleware',
 ]
 
 AUTH_USER_MODEL = 'chats.User'
