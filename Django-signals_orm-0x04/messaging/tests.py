@@ -134,7 +134,6 @@ class MessageNotificationTests(TestCase):
         MessageHistory.edited_by.field.remote_field.on_delete = models.CASCADE
 
     def test_threaded_conversation(self):
-        # Create threaded messages
         reply1 = Message.objects.create(
             sender=self.receiver,
             receiver=self.sender,
@@ -158,7 +157,6 @@ class MessageNotificationTests(TestCase):
         self.assertEqual(data['conversation']['replies'][0]['replies'][0]['content'], "Reply 2")
 
     def test_threaded_conversation_unauthorized(self):
-        # Create a message not involving 'other' user
         other_user = User.objects.create_user(username='other', password='testpass')
         other_message = Message.objects.create(
             sender=self.sender,
@@ -167,9 +165,7 @@ class MessageNotificationTests(TestCase):
         )
         self.client.login(username='other', password='testpass')
         response = self.client.get(f'/message/{other_message.id}/thread/')
-        self.assertEqual(response.status_code, 404)  # Not found due to filter
-        # Test unauthorized access to an existing message
-        self.client.login(username='other', password='testpass')
+        self.assertEqual(response.status_code, 404)
         response = self.client.get(f'/message/{self.message.id}/thread/')
         self.assertEqual(response.status_code, 404)
 
@@ -181,12 +177,11 @@ class MessageNotificationTests(TestCase):
             parent_message=self.message
         )
         self.client.login(username='sender', password='testpass')
-        with self.assertNumQueries(3):  # 1 for root, 1 per reply level
+        with self.assertNumQueries(3):
             response = self.client.get(f'/message/{self.message.id}/thread/')
             self.assertEqual(response.status_code, 200)
 
     def test_threaded_conversation_sender_filter(self):
-        # Create a message not sent or received by sender
         other_user = User.objects.create_user(username='other', password='testpass')
         unrelated_message = Message.objects.create(
             sender=other_user,
@@ -196,6 +191,59 @@ class MessageNotificationTests(TestCase):
         self.client.login(username='sender', password='testpass')
         response = self.client.get(f'/message/{unrelated_message.id}/thread/')
         self.assertEqual(response.status_code, 404)
+
+    def test_unread_messages_manager(self):
+        # Create messages
+        unread_message = Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Unread message",
+            read=False
+        )
+        read_message = Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Read message",
+            read=True
+        )
+        # Test custom manager
+        unread = Message.unread.for_user(self.receiver)
+        self.assertEqual(unread.count(), 2)  # Includes self.message and unread_message
+        self.assertNotIn(read_message, unread)
+
+    def test_unread_messages_view(self):
+        # Create messages
+        Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Unread message",
+            read=False
+        )
+        Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Read message",
+            read=True
+        )
+        self.client.login(username='receiver', password='testpass')
+        response = self.client.get('/unread-messages/')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data['unread_messages']), 2)  # self.message and unread_message
+        self.assertEqual(data['unread_messages'][0]['content'], "Original message")
+        self.assertFalse(data['unread_messages'][0]['read'])
+
+    def test_unread_messages_query_optimization(self):
+        Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Unread message",
+            read=False
+        )
+        self.client.login(username='receiver', password='testpass')
+        with self.assertNumQueries(1):  # Single query with select_related
+            response = self.client.get('/unread-messages/')
+            self.assertEqual(response.status_code, 200)
 
     def test_signal_disconnected_during_test(self):
         post_save.disconnect(create_message_notification, sender=Message)
