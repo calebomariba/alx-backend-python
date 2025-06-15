@@ -1,5 +1,6 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
+from django.db import models
 from .models import Message, Notification, MessageHistory
 from django.db.models.signals import post_save, pre_save, post_delete
 from .signals import create_message_notification, log_message_edit, cleanup_user_data
@@ -157,12 +158,20 @@ class MessageNotificationTests(TestCase):
         self.assertEqual(data['conversation']['replies'][0]['replies'][0]['content'], "Reply 2")
 
     def test_threaded_conversation_unauthorized(self):
+        # Create a message not involving 'other' user
         other_user = User.objects.create_user(username='other', password='testpass')
+        other_message = Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="Other message"
+        )
+        self.client.login(username='other', password='testpass')
+        response = self.client.get(f'/message/{other_message.id}/thread/')
+        self.assertEqual(response.status_code, 404)  # Not found due to filter
+        # Test unauthorized access to an existing message
         self.client.login(username='other', password='testpass')
         response = self.client.get(f'/message/{self.message.id}/thread/')
-        self.assertEqual(response.status_code, 403)
-        data = json.loads(response.content)
-        self.assertIn('error', data)
+        self.assertEqual(response.status_code, 404)
 
     def test_threaded_conversation_query_optimization(self):
         reply = Message.objects.create(
@@ -172,9 +181,21 @@ class MessageNotificationTests(TestCase):
             parent_message=self.message
         )
         self.client.login(username='sender', password='testpass')
-        with self.assertNumQueries(2):  # 1 for message, 1 for prefetch_related replies
+        with self.assertNumQueries(3):  # 1 for root, 1 per reply level
             response = self.client.get(f'/message/{self.message.id}/thread/')
             self.assertEqual(response.status_code, 200)
+
+    def test_threaded_conversation_sender_filter(self):
+        # Create a message not sent or received by sender
+        other_user = User.objects.create_user(username='other', password='testpass')
+        unrelated_message = Message.objects.create(
+            sender=other_user,
+            receiver=self.receiver,
+            content="Unrelated message"
+        )
+        self.client.login(username='sender', password='testpass')
+        response = self.client.get(f'/message/{unrelated_message.id}/thread/')
+        self.assertEqual(response.status_code, 404)
 
     def test_signal_disconnected_during_test(self):
         post_save.disconnect(create_message_notification, sender=Message)

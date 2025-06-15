@@ -4,10 +4,15 @@ from django.contrib.auth import logout
 from django.http import JsonResponse, HttpResponseForbidden
 from .models import Message
 
-def get_threaded_messages(message):
-    """Recursively fetch message and its replies in a threaded structure."""
-    replies = [
-        get_threaded_messages(reply) for reply in message.replies.all()
+def get_threaded_messages(message, user):
+    """Recursively fetch message and its replies for the given user."""
+    # Fetch replies for this message, filtered by user as sender or receiver
+    replies = Message.objects.filter(parent_message=message).filter(
+        models.Q(sender=user) | models.Q(receiver=user)
+    ).select_related('sender', 'receiver', 'parent_message').prefetch_related('replies__sender', 'replies__receiver')
+    
+    reply_data = [
+        get_threaded_messages(reply, user) for reply in replies
     ]
     return {
         'id': message.id,
@@ -17,7 +22,7 @@ def get_threaded_messages(message):
         'timestamp': message.timestamp.isoformat(),
         'edited': message.edited,
         'parent_message_id': message.parent_message_id,
-        'replies': replies
+        'replies': reply_data
     }
 
 @login_required
@@ -60,18 +65,16 @@ def delete_user(request):
 @login_required
 def threaded_conversation(request, message_id):
     """
-    Fetch a message and its threaded replies using optimized queries.
+    Fetch a message and its threaded replies for the current user using optimized queries.
     """
-    # Optimize query with select_related and prefetch_related
+    # Fetch the root message, ensuring the user is the sender or receiver
     message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver', 'parent_message')
-                       .prefetch_related('replies__sender', 'replies__receiver', 'replies__replies'),
+        Message.objects.filter(
+            models.Q(sender=request.user) | models.Q(receiver=request.user)
+        ).select_related('sender', 'receiver', 'parent_message'),
         id=message_id
     )
-    # Restrict access to sender or receiver
-    if request.user not in [message.sender, message.receiver]:
-        return HttpResponseForbidden({'error': 'You do not have permission to view this conversation'})
     
     # Get threaded structure
-    threaded_data = get_threaded_messages(message)
+    threaded_data = get_threaded_messages(message, request.user)
     return JsonResponse({'conversation': threaded_data})
