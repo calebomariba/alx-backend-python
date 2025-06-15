@@ -4,7 +4,9 @@ from django.db import models
 from .models import Message, Notification, MessageHistory
 from django.db.models.signals import post_save, pre_save, post_delete
 from .signals import create_message_notification, log_message_edit, cleanup_user_data
+from django.core.cache import cache
 import json
+import time
 
 class MessageNotificationTests(TestCase):
     def setUp(self):
@@ -16,6 +18,10 @@ class MessageNotificationTests(TestCase):
             receiver=self.receiver,
             content="Original message"
         )
+
+    def tearDown(self):
+        # Clear cache after each test
+        cache.clear()
 
     def test_notification_created_on_message_save(self):
         message = Message.objects.create(
@@ -206,7 +212,7 @@ class MessageNotificationTests(TestCase):
             read=True
         )
         unread = Message.unread.unread_for_user(self.receiver)
-        self.assertEqual(unread.count(), 2)  # Includes self.message and unread_message
+        self.assertEqual(unread.count(), 2)
         self.assertNotIn(read_message, unread)
 
     def test_unread_messages_view(self):
@@ -241,6 +247,36 @@ class MessageNotificationTests(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get('/unread-messages/')
             self.assertEqual(response.status_code, 200)
+
+    def test_threaded_conversation_caching(self):
+        reply = Message.objects.create(
+            sender=self.receiver,
+            receiver=self.sender,
+            content="Reply",
+            parent_message=self.message
+        )
+        self.client.login(username='sender', password='testpass')
+        
+        # First request: should hit database
+        with self.assertNumQueries(3):
+            response1 = self.client.get(f'/message/{self.message.id}/thread/')
+            self.assertEqual(response1.status_code, 200)
+            data1 = json.loads(response1.content)
+        
+        # Second request within 60 seconds: should hit cache
+        with self.assertNumQueries(0):  # No database queries
+            response2 = self.client.get(f'/message/{self.message.id}/thread/')
+            self.assertEqual(response2.status_code, 200)
+            data2 = json.loads(response2.content)
+            self.assertEqual(data1, data2)  # Same data from cache
+        
+        # Wait 61 seconds to expire cache
+        time.sleep(61)
+        
+        # Third request: should hit database again
+        with self.assertNumQueries(3):
+            response3 = self.client.get(f'/message/{self.message.id}/thread/')
+            self.assertEqual(response3.status_code, 200)
 
     def test_signal_disconnected_during_test(self):
         post_save.disconnect(create_message_notification, sender=Message)

@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.cache import cache_page
 from .models import Message
 from django.db import models
 
@@ -63,7 +64,11 @@ def delete_user(request):
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @login_required
+@cache_page(60)  # Cache for 60 seconds
 def threaded_conversation(request, message_id):
+    """
+    Fetch a message and its threaded replies for the current user using optimized queries.
+    """
     message = get_object_or_404(
         Message.objects.filter(
             models.Q(sender=request.user) | models.Q(receiver=request.user)

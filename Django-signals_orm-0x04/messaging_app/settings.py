@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'chats',
     'rest_framework_simplejwt',
     'django_filters'
+    'messaging',
 ]
 
 INSTALLED_APPS += [
@@ -162,3 +163,10 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'chats.User'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
