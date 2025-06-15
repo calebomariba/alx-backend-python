@@ -193,7 +193,6 @@ class MessageNotificationTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_unread_messages_manager(self):
-        # Create messages
         unread_message = Message.objects.create(
             sender=self.sender,
             receiver=self.receiver,
@@ -206,13 +205,11 @@ class MessageNotificationTests(TestCase):
             content="Read message",
             read=True
         )
-        # Test custom manager
-        unread = Message.unread.for_user(self.receiver)
+        unread = Message.unread.unread_for_user(self.receiver)
         self.assertEqual(unread.count(), 2)  # Includes self.message and unread_message
         self.assertNotIn(read_message, unread)
 
     def test_unread_messages_view(self):
-        # Create messages
         Message.objects.create(
             sender=self.sender,
             receiver=self.receiver,
@@ -229,7 +226,7 @@ class MessageNotificationTests(TestCase):
         response = self.client.get('/unread-messages/')
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
-        self.assertEqual(len(data['unread_messages']), 2)  # self.message and unread_message
+        self.assertEqual(len(data['unread_messages']), 2)
         self.assertEqual(data['unread_messages'][0]['content'], "Original message")
         self.assertFalse(data['unread_messages'][0]['read'])
 
@@ -241,7 +238,7 @@ class MessageNotificationTests(TestCase):
             read=False
         )
         self.client.login(username='receiver', password='testpass')
-        with self.assertNumQueries(1):  # Single query with select_related
+        with self.assertNumQueries(1):
             response = self.client.get('/unread-messages/')
             self.assertEqual(response.status_code, 200)
 

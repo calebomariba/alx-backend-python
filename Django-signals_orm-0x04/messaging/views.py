@@ -78,8 +78,7 @@ def unread_messages(request):
     """
     Fetch unread messages for the current user using the custom manager.
     """
-    # Use custom manager with .only() to optimize
-    messages = Message.unread.for_user(request.user).select_related('sender').only(
+    messages = Message.unread.unread_for_user(request.user).select_related('sender').only(
         'id', 'sender__username', 'content', 'timestamp', 'read'
     )
     messages_data = [

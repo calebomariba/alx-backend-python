@@ -1,13 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-
-class UnreadMessagesManager(models.Manager):
-    def for_user(self, user):
-        """
-        Filter unread messages where the user is the receiver.
-        """
-        return self.get_queryset().filter(receiver=user, read=False)
+from .managers import UnreadMessagesManager
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -15,7 +9,7 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now)
     edited = models.BooleanField(default=False)
-    read = models.BooleanField(default=False)  # Tracks if the message has been read
+    read = models.BooleanField(default=False)
     parent_message = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
