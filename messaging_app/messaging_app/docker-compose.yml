@@ -8,10 +8,10 @@ services:
     env_file:
       - .env
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: messaging_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: Nyanchie#7
+      MYSQL_ROOT_PASSWORD: Nyanchie#7
     ports:
       - "3306:3306"
     volumes:
