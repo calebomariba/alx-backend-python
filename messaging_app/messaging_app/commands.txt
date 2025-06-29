@@ -46,6 +46,7 @@ minikube service django-messaging-service --url
 # 13. Monitor Ingress logs (if needed for troubleshooting)
 # kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
 
+
 # 14. Test different paths
 # curl http://$(minikube ip)/api/
 # curl http://$(minikube ip)/admin/
