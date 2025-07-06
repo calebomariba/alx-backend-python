@@ -1,42 +1,52 @@
 pipeline {
     agent any
-
-    tools {
-        python 'Python 3' // Ensure this is defined in Jenkins tools
-    }
-
+    
     environment {
-        VENV_DIR = 'venv'
+        APP_DIR = 'messaging_app'
     }
-
+    
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git credentialsId: 'your-credentials-id', url: 'https://github.com/calebomariba/alx-backend-python.git'
+                git credentialsId: 'github-credentials', 
+                    url: 'https://github.com/calebomariba/alx-backend-python.git',
+                    git branch: 'main'
             }
         }
-
-        stage('Set Up Python') {
+        
+        stage('Setup Python Environment') {
             steps {
-                sh 'python3 -m venv $VENV_DIR'
-                sh '. $VENV_DIR/bin/activate && pip install --upgrade pip && pip install -r messaging_app/requirements.txt'
+                dir("${APP_DIR}") {
+                    sh '''
+                        python -m venv venv
+                        . venv/bin/activate
+                        pip3 install -r messaging_app/requirements.txt
+                    '''
+                }
             }
         }
-
+        
         stage('Run Tests') {
             steps {
-                sh '. $VENV_DIR/bin/activate && pytest messaging_app/tests --junitxml=report.xml'
+                dir("${APP_DIR}") {
+                    sh '''
+                        . venv/bin/activate
+                        pytest test_simple.py -v -s --junitxml=test-results.xml
+                    '''
+                }
             }
         }
-
-        stage('Publish Report') {
+        
+        stage('Generate Report') {
             steps {
-                junit 'report.xml'
+                publishTestResults testResultsPattern: "${APP_DIR}/test-results.xml"
             }
         }
     }
-
-    options {
-        skipDefaultCheckout(true)
+    
+    post {
+        success {
+            echo "All tests passed successfully!"
+        }
     }
 }
